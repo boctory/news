@@ -1,4 +1,4 @@
-#!/Users/BC/Documents/AI/news/.venv/bin/python
+#!/Users/bc/development/news/.venv/bin/python3.11
 # -*- coding: utf-8 -*-
 import re
 import sys

@@ -1,0 +1,56 @@
+=== 텍스트 요약 평가 결과 ===
+
+요약 방식: 추출적 요약 (TextRank 알고리즘 기반)
+평가 샘플 수: 3
+
+
+[샘플 1]
+원문 (앞부분): Saurav Kant, an alumnus of upGrad and IIIT-B's PG Program in Machine learning and Artificial Intelligence, was a Sr Systems Engineer at Infosys with almost 5 years of work experience. The program and ...
+원본 요약: upGrad learner switches to career in ML & Al with 90% salary hike
+생성된 요약: upGrad's Online Power Learning has powered 3 lakh+ careers.
+---
+
+[샘플 2]
+원문 (앞부분): Kunal Shah's credit card bill payment platform, CRED, gave users a chance to win free food from Swiggy for one year. Pranav Kaushik, a Delhi techie, bagged this reward after spending 2000 CRED coins. ...
+원본 요약: Delhi techie wins free food from Swiggy for one year on CRED
+생성된 요약: Users get one CRED coin per rupee of bill paid, which can be used to avail rewards from brands like Ixigo, BookMyShow, UberEats, Cult.Fit and more.
+---
+
+[샘플 3]
+원문 (앞부분): New Zealand defeated India by 8 wickets in the fourth ODI at Hamilton on Thursday to win their first match of the five-match ODI series. India lost an international match under Rohit Sharma's captainc...
+원본 요약: New Zealand end Rohit Sharma-led India's 12-match winning streak
+생성된 요약: The match witnessed India getting all out for 92, their seventh lowest total in ODI cricket history.
+---
+
+
+=== ROUGE 점수 설명 ===
+ROUGE 점수는 생성된 요약문의 품질을 평가하는 지표입니다.
+
+1. ROUGE-1: 단일 단어(unigram) 기반 평가
+2. ROUGE-2: 두 단어 연속(bigram) 기반 평가
+3. ROUGE-L: 최장 공통 부분수열 기반 평가
+
+각 점수의 의미:
+- Precision(정밀도): 생성된 요약문의 단어 중 원본 요약문과 일치하는 비율
+- Recall(재현율): 원본 요약문의 단어 중 생성된 요약문에 포함된 비율
+- F-measure(F1 점수): Precision과 Recall의 조화평균
+
+점수는 0~1 사이이며, 1에 가까울수록 원본 요약문과 더 유사함을 의미합니다.
+
+
+=== ROUGE 점수 결과 ===
+
+rouge1:
+  precision: 0.1429
+  recall: 0.1944
+  fmeasure: 0.1579
+
+rouge2:
+  precision: 0.0000
+  recall: 0.0000
+  fmeasure: 0.0000
+
+rougeL:
+  precision: 0.1110
+  recall: 0.1389
+  fmeasure: 0.1178

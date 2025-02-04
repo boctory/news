@@ -1,9 +1,9 @@
 pandas
 numpy
-tensorflow
-nltk
 scikit-learn
-summa
+nltk
+tensorflow<2.16
 rouge-score
 matplotlib
-seaborn 
+seaborn
+summa 

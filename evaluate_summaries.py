@@ -1,37 +1,11 @@
-import subprocess
-import sys
-
-def install_requirements():
-    requirements = [
-        'pandas',
-        'numpy',
-        'tensorflow',
-        'rouge-score',
-        'matplotlib',
-        'seaborn'
-    ]
-    
-    print("필요한 라이브러리 설치 중...")
-    for package in requirements:
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-        except:
-            print(f"{package} 설치 중 오류가 발생했습니다.")
-            sys.exit(1)
-    print("라이브러리 설치 완료\n")
-
-# 필요한 라이브러리 설치
-install_requirements()
-
-import pandas as pd
-import numpy as np
-from rouge_score import rouge_scorer
-import matplotlib.pyplot as plt
-import seaborn as sns
-from tensorflow.keras.models import load_model # type: ignore
+import pandas as pd # type: ignore
+import numpy as np # type: ignore
+from rouge_score import rouge_scorer # type: ignore
+import matplotlib.pyplot as plt # type: ignore
+import seaborn as sns # type: ignore
+from summa import summarizer # type: ignore
 import re
-from tensorflow.keras.preprocessing.sequence import pad_sequences # type: ignore
-from tensorflow.keras.preprocessing.text import Tokenizer # type: ignore
+import sys
 
 def load_data(filename='news_summary_more.csv'):
     try:
@@ -42,14 +16,32 @@ def load_data(filename='news_summary_more.csv'):
         print(f"데이터 로드 중 오류 발생: {e}")
         sys.exit(1)
 
-def preprocess_text(text):
-    if not isinstance(text, str):
-        return ""
-    text = text.lower()
-    text = re.sub(r'[^\w\s]', '', text)
-    text = re.sub(r'\d+', '', text)
-    text = re.sub(r'\s+', ' ', text)
-    return text.strip()
+def extractive_summary(text, ratio=0.3):
+    try:
+        # 텍스트 전처리
+        text = text.replace('\n', ' ').strip()
+        
+        # 요약 생성
+        summary = summarizer.summarize(text, ratio=ratio)
+        
+        # 요약이 비어있으면 다른 비율로 시도
+        if not summary:
+            for r in [0.4, 0.5, 0.6]:
+                summary = summarizer.summarize(text, ratio=r)
+                if summary:
+                    break
+        
+        # 여전히 비어있으면 원문의 첫 부분 반환
+        if not summary:
+            sentences = text.split('.')
+            summary = '. '.join(sentences[:3]) + '.'
+            
+        return summary
+    except Exception as e:
+        print(f"추출적 요약 중 오류 발생: {e}")
+        # 오류 발생시 원문의 첫 3문장 반환
+        sentences = text.split('.')
+        return '. '.join(sentences[:3]) + '.'
 
 def evaluate_summaries(original_summaries, generated_summaries):
     scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
@@ -68,22 +60,33 @@ def evaluate_summaries(original_summaries, generated_summaries):
     
     return scores
 
-def plot_scores(scores):
-    plt.figure(figsize=(15, 5))
+def print_scores(scores):
+    explanation = """
+=== ROUGE 점수 설명 ===
+ROUGE 점수는 생성된 요약문의 품질을 평가하는 지표입니다.
+
+1. ROUGE-1: 단일 단어(unigram) 기반 평가
+2. ROUGE-2: 두 단어 연속(bigram) 기반 평가
+3. ROUGE-L: 최장 공통 부분수열 기반 평가
+
+각 점수의 의미:
+- Precision(정밀도): 생성된 요약문의 단어 중 원본 요약문과 일치하는 비율
+- Recall(재현율): 원본 요약문의 단어 중 생성된 요약문에 포함된 비율
+- F-measure(F1 점수): Precision과 Recall의 조화평균
+
+점수는 0~1 사이이며, 1에 가까울수록 원본 요약문과 더 유사함을 의미합니다.
+"""
+    result = [explanation, "\n=== ROUGE 점수 결과 ==="]
     
-    metrics = ['precision', 'recall', 'fmeasure']
-    rouge_types = list(scores.keys())
+    for metric, values in scores.items():
+        result.append(f"\n{metric}:")
+        for key, value in values.items():
+            avg_value = np.mean(value)
+            result.append(f"  {key}: {avg_value:.4f}")
     
-    for i, metric in enumerate(metrics, 1):
-        plt.subplot(1, 3, i)
-        data = [scores[rouge_type][metric] for rouge_type in rouge_types]
-        plt.boxplot(data, labels=rouge_types)
-        plt.title(f'Distribution of {metric}')
-        plt.ylabel('Score')
-    
-    plt.tight_layout()
-    plt.savefig('rouge_scores.png')
-    print("ROUGE 점수 분포도가 'rouge_scores.png'로 저장되었습니다.")
+    result_text = '\n'.join(result)
+    print(result_text)
+    return result_text
 
 def print_detailed_comparison(original, generated, scores, index):
     print(f"\n=== 샘플 {index + 1} 상세 비교 ===")
@@ -135,48 +138,55 @@ def load_generated_summaries(filename='generated_summaries.txt'):
         sys.exit(1)
 
 def main():
-    # 테스트 데이터 로드
-    test_texts, original_summaries = load_test_data()
+    # 데이터 로드
+    data = load_data()
     
-    # 생성된 요약문 로드
-    generated_summaries = load_generated_summaries()
+    # 테스트 샘플 수 설정
+    test_samples = min(3, len(data))
     
-    # 데이터 개수 확인
-    if len(original_summaries) != len(generated_summaries):
-        print(f"Warning: 원본 요약문({len(original_summaries)}개)과 생성된 요약문({len(generated_summaries)}개)의 개수가 일치하지 않습니다.")
-        # 더 작은 수로 맞추기
-        min_len = min(len(original_summaries), len(generated_summaries))
-        original_summaries = original_summaries[:min_len]
-        generated_summaries = generated_summaries[:min_len]
-        print(f"평가를 위해 {min_len}개의 샘플만 사용합니다.")
+    # 결과 파일 초기화
+    with open('output.txt', 'w', encoding='utf-8') as f:
+        f.write("=== 텍스트 요약 평가 결과 ===\n")
+        f.write("\n요약 방식: 추출적 요약 (TextRank 알고리즘 기반)\n")
+        f.write(f"평가 샘플 수: {test_samples}\n\n")
     
-    # ROUGE 점수 계산
-    print("\n=== ROUGE 점수 계산 중 ===")
-    scores = evaluate_summaries(original_summaries, generated_summaries)
+    # 요약 생성 및 평가
+    original_summaries = []
+    generated_summaries = []
+    test_texts = []
     
-    # 결과 출력
-    print("\n=== 전체 ROUGE 점수 통계 ===")
-    for metric in scores.keys():
-        print(f"\n{metric}:")
-        for key in scores[metric].keys():
-            values = scores[metric][key]
-            print(f"  {key}:")
-            print(f"    평균: {np.mean(values):.4f}")
-            print(f"    중앙값: {np.median(values):.4f}")
-            print(f"    표준편차: {np.std(values):.4f}")
-    
-    # 상세 비교 (처음 3개 샘플)
-    for i in range(min(3, len(original_summaries))):
-        print_detailed_comparison(
-            original_summaries[i],
-            generated_summaries[i],
-            scores,
-            i
+    print("\n=== 요약 생성 및 평가 중 ===")
+    for i in range(test_samples):
+        text = data['text'].iloc[i]
+        original_summary = data['headlines'].iloc[i]
+        generated_summary = extractive_summary(text)
+        
+        test_texts.append(text)
+        original_summaries.append(original_summary)
+        generated_summaries.append(generated_summary)
+        
+        output_text = (
+            f"\n[샘플 {i+1}]\n"
+            f"원문 (앞부분): {text[:200]}...\n"
+            f"원본 요약: {original_summary}\n"
+            f"생성된 요약: {generated_summary}\n"
+            f"---\n"
         )
-        print("\n원본 텍스트:", test_texts[i][:200], "...")
+        
+        # 파일에 저장
+        with open('output.txt', 'a', encoding='utf-8') as f:
+            f.write(output_text)
+        
+        # 콘솔에 출력
+        print(output_text)
     
-    # 시각화
-    plot_scores(scores)
+    # ROUGE 점수 계산 및 출력
+    scores = evaluate_summaries(original_summaries, generated_summaries)
+    result_text = print_scores(scores)
+    
+    # ROUGE 점수 결과를 파일에 추가
+    with open('output.txt', 'a', encoding='utf-8') as f:
+        f.write("\n" + result_text)
 
 if __name__ == "__main__":
     main() 
